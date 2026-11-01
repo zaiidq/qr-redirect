@@ -13,7 +13,8 @@ from the admin page. The printed QR never changes — only the destination does.
 
 ```
 index.php        single entry point / router
-config.php       settings (BASE_URL, ADMIN_PASSWORD, DB_PATH)
+config.php       default settings (tracked in git, keep it unchanged)
+config.local.php YOUR real settings (create it; git-ignored, blocked from the web)
 .htaccess        Apache routing + blocking of private files
 web.config       IIS routing + blocking of private files
 inc/             PHP helpers and HTML templates (blocked from the web)
@@ -34,12 +35,24 @@ assets/          admin.css, admin.js, qrcode.js
 php -S localhost:8000 index.php
 ```
 
-Then open <http://localhost:8000/admin>. For local testing set in `config.php`:
+Then open <http://localhost:8000/admin>. For local testing create `config.local.php` (see below) with
 `'BASE_URL' => 'http://localhost:8000'` and any test password.
 
 ## 3. Before deploying
 
-Edit `config.php`:
+Create `config.local.php` next to `config.php` with your real settings.
+It overrides `config.php`, is ignored by git and is never served over HTTP,
+so your password can't be committed by accident:
+
+```php
+<?php
+return [
+    'BASE_URL'       => 'https://go.mydomain.com',
+    'ADMIN_PASSWORD' => 'a-long-strong-password',
+];
+```
+
+Settings:
 
 - `BASE_URL` → your real short domain, e.g. `https://go.mydomain.com` (no trailing slash).
   **This is the text printed inside every QR code.**
@@ -54,7 +67,7 @@ Edit `config.php`:
 2. Make sure the `data/` folder is writable by PHP (usually `755` or `775`; on some hosts `777`).
 3. Open `https://go.mydomain.com/admin` and log in. Done.
 
-`.htaccess` sends every request that is not a real file to `index.php`, and blocks `config.php`,
+`.htaccess` sends every request that is not a real file to `index.php`, and blocks `config.php`, `config.local.php`,
 `data/` and `inc/`. Apache needs `mod_rewrite` and `AllowOverride All` (default on almost all shared hosts).
 
 ### nginx + PHP-FPM
@@ -70,6 +83,7 @@ server {
     location ^~ /data/     { deny all; return 404; }
     location ^~ /inc/      { deny all; return 404; }
     location = /config.php { deny all; return 404; }
+    location = /config.local.php { deny all; return 404; }
     location ~ /\.         { deny all; return 404; }   # .htaccess etc.
 
     location / {
@@ -97,7 +111,7 @@ sudo chown -R www-data:www-data /var/www/qr/data
 
 1. Install PHP (FastCGI handler for `*.php`) and the **URL Rewrite** module.
 2. Copy all files to the site folder. The included `web.config` handles routing and blocks
-   `config.php`, `data/` and `inc/`.
+   `config.php`, `config.local.php`, `data/` and `inc/`.
 3. Give the application pool identity (e.g. `IIS AppPool\YourSiteName`) **Modify** permission on the `data` folder.
 
 ### Tailscale Funnel (no domain needed)
@@ -111,7 +125,7 @@ tailscale funnel status              # shows the public https://….ts.net URL
 ```
 
 The first time, Tailscale prints a link to enable Funnel (and HTTPS certificates) for your tailnet.
-Then set `BASE_URL` in `config.php` to the `https://….ts.net` address shown by `tailscale funnel status`.
+Then set `BASE_URL` in `config.local.php` to the `https://….ts.net` address shown by `tailscale funnel status`.
 Keep the machine name and tailnet name unchanged afterwards: they are part of every printed QR.
 
 To stop: `sudo tailscale funnel --https=443 off`.
@@ -123,7 +137,7 @@ With HTTPS the login cookie is automatically marked `Secure`.
 
 ## 5. Backup
 
-The whole state is the single file `data/qr.db`. Copy it somewhere safe regularly.
+The whole state is the single file `data/qr.db` (plus your `config.local.php`). Copy it somewhere safe regularly.
 To restore, put it back in `data/`.
 
 ## 6. Important warning

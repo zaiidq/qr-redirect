@@ -13,7 +13,16 @@ const LOGIN_WINDOW    = 600; // seconds (10 minutes)
 
 function load_config(): array
 {
-    $cfg = require __DIR__ . '/../config.php';
+    // Defaults from config.php (tracked in git), overridden by config.local.php
+    // (server-only, git-ignored) so real settings never end up in the repository.
+    $cfg   = require __DIR__ . '/../config.php';
+    $local = __DIR__ . '/../config.local.php';
+    if (is_file($local)) {
+        $override = require $local;
+        if (is_array($override)) {
+            $cfg = array_merge($cfg, $override);
+        }
+    }
     $cfg['BASE_URL']       = rtrim(trim((string)($cfg['BASE_URL'] ?? '')), '/');
     $cfg['ADMIN_PASSWORD'] = (string)($cfg['ADMIN_PASSWORD'] ?? '');
     $cfg['DB_PATH']        = (string)($cfg['DB_PATH'] ?? (__DIR__ . '/../data/qr.db'));

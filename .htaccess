@@ -6,7 +6,7 @@ DirectoryIndex index.php
 
     # Block private folders and files
     RewriteRule ^(data|inc)(/|$) - [F,L]
-    RewriteRule ^(config\.php|README\.md|web\.config)$ - [F,L,NC]
+    RewriteRule ^(config(\.local)?\.php|README\.md|web\.config)$ - [F,L,NC]
 
     # Everything that is not an existing file or folder goes to index.php
     RewriteCond %{REQUEST_FILENAME} !-f
@@ -14,9 +14,9 @@ DirectoryIndex index.php
     RewriteRule ^ index.php [L]
 </IfModule>
 
-<Files "config.php">
+<FilesMatch "^config(\.local)?\.php$">
     Require all denied
-</Files>
+</FilesMatch>
 <FilesMatch "\.(db|sqlite|sqlite3|md)$">
     Require all denied
 </FilesMatch>

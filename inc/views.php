@@ -72,7 +72,7 @@ function render_login(array $flashes, bool $passwordSet): void
 {
     $body = '<main class="auth"><div class="auth-card">' . brand();
     if (!$passwordSet) {
-        $body .= '<div class="flash err">The admin password is not set yet. Open <code>config.php</code>, set <code>ADMIN_PASSWORD</code> to a strong password, then reload this page.</div>';
+        $body .= '<div class="flash err">The admin password is not set yet. Set <code>ADMIN_PASSWORD</code> in <code>config.local.php</code> (a strong password), then reload this page.</div>';
     } else {
         $body .= '<p class="muted">Sign in to manage your QR codes.</p>'
             . flash_html($flashes)
