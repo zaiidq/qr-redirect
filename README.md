@@ -100,6 +100,22 @@ sudo chown -R www-data:www-data /var/www/qr/data
    `config.php`, `data/` and `inc/`.
 3. Give the application pool identity (e.g. `IIS AppPool\YourSiteName`) **Modify** permission on the `data` folder.
 
+### Tailscale Funnel (no domain needed)
+
+If the server is on Tailscale, Funnel gives it a free public HTTPS address like
+`https://my-server.tail1234.ts.net` that forwards to the app. No domain, no router port forwarding.
+
+```bash
+sudo tailscale funnel --bg 8082      # 8082 = the local port the app listens on
+tailscale funnel status              # shows the public https://….ts.net URL
+```
+
+The first time, Tailscale prints a link to enable Funnel (and HTTPS certificates) for your tailnet.
+Then set `BASE_URL` in `config.php` to the `https://….ts.net` address shown by `tailscale funnel status`.
+Keep the machine name and tailnet name unchanged afterwards: they are part of every printed QR.
+
+To stop: `sudo tailscale funnel --https=443 off`.
+
 ### HTTPS
 
 Strongly recommended. Use Let's Encrypt (`certbot`) or the free SSL option in your hosting panel.

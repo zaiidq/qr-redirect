@@ -163,17 +163,17 @@ function client_ip(): string
 
 // ---------------------------------------------------------------- validation
 
-/** Returns an Arabic error message, or null when the code is valid. */
+/** Returns an error message, or null when the code is valid. */
 function code_error(string $code): ?string
 {
     if ($code === '') {
-        return 'الكود مطلوب';
+        return 'Code is required.';
     }
     if (in_array($code, RESERVED_CODES, true)) {
-        return 'هذا الكود محجوز للنظام، اختر كوداً آخر';
+        return 'This code is reserved. Please choose another one.';
     }
     if (!preg_match('/^[a-z0-9-]{1,50}$/', $code)) {
-        return 'الكود غير صالح: استخدم حروفاً إنجليزية صغيرة وأرقاماً وشرطة (-) فقط، بحد أقصى 50 حرفاً';
+        return 'Invalid code. Use lowercase letters, numbers and dashes only (max 50).';
     }
     return null;
 }

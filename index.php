@@ -43,7 +43,7 @@ try {
         case 'logout':
             if ($method !== 'POST') {
                 header('Allow: POST');
-                render_simple(405, 'Method not allowed', '<p>استخدم زر الخروج من لوحة التحكم.</p><p><a href="/admin">العودة</a></p>');
+                render_simple(405, 'Method not allowed', '<h1>Method not allowed</h1><p>Use the Log out button in the dashboard.</p><p><a href="/admin">Back to dashboard</a></p>');
                 exit;
             }
             start_session();
@@ -69,7 +69,7 @@ try {
 } catch (Throwable $ex) {
     error_log('[qr] ' . $ex->getMessage());
     $hint = $ex instanceof RuntimeException ? '<p dir="ltr" class="muted">' . e($ex->getMessage()) . '</p>' : '';
-    render_simple(500, 'Error', '<h1>حدث خطأ في الخادم</h1><p dir="ltr">Server error</p>' . $hint);
+    render_simple(500, 'Error', '<h1>Server error</h1><p>Something went wrong. Check the PHP / web server error log.</p>' . $hint);
     exit;
 }
 
@@ -112,7 +112,7 @@ function handle_login(array $config, string $method): void
     }
 
     if (!csrf_ok()) {
-        flash('error', 'انتهت صلاحية الصفحة، حاول مرة أخرى.');
+        flash('error', 'The page expired. Please try again.');
         redirect('/login');
     }
 
@@ -124,7 +124,7 @@ function handle_login(array $config, string $method): void
     $count->execute([$ip]);
     $fails = (int)$count->fetchColumn();
 
-    $blockedMsg = 'محاولات دخول خاطئة كثيرة. انتظر 10 دقائق ثم حاول مرة أخرى.';
+    $blockedMsg = 'Too many failed attempts. Please wait 10 minutes and try again.';
     if ($fails >= LOGIN_MAX_FAILS) {
         http_response_code(429);
         render_login([['type' => 'error', 'msg' => $blockedMsg]], true);
@@ -148,7 +148,7 @@ function handle_login(array $config, string $method): void
         return;
     }
     http_response_code(401);
-    render_login([['type' => 'error', 'msg' => 'كلمة المرور غير صحيحة.']], true);
+    render_login([['type' => 'error', 'msg' => 'Wrong password.']], true);
 }
 
 function handle_admin(array $config, string $method): void
@@ -161,7 +161,7 @@ function handle_admin(array $config, string $method): void
 
     if ($method === 'POST') {
         if (!csrf_ok()) {
-            render_simple(403, 'Forbidden', '<h1>طلب مرفوض</h1><p>رمز الحماية (CSRF) غير صالح أو انتهت صلاحية الصفحة.</p><p><a href="/admin">العودة إلى لوحة التحكم</a></p>');
+            render_simple(403, 'Forbidden', '<h1>Request rejected</h1><p>Invalid security token, or the page expired. Please go back and try again.</p><p><a href="/admin">Back to dashboard</a></p>');
             return;
         }
         $action = (string)($_POST['action'] ?? '');
@@ -175,13 +175,13 @@ function handle_admin(array $config, string $method): void
 
             $err = code_error($code);
             if ($err === null && $url === null) {
-                $err = 'الرابط غير صالح. يجب أن يبدأ بـ http:// أو https://';
+                $err = 'Invalid URL. It must start with http:// or https://';
             }
             if ($err === null) {
                 $chk = $pdo->prepare('SELECT 1 FROM links WHERE code = ?');
                 $chk->execute([$code]);
                 if ($chk->fetchColumn()) {
-                    $err = 'الكود مستخدم مسبقاً';
+                    $err = 'This code is already taken.';
                 }
             }
             if ($err === null) {
@@ -190,9 +190,9 @@ function handle_admin(array $config, string $method): void
                     $pdo->prepare('INSERT INTO links (code, title, target_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
                         ->execute([$code, $title, $url, $now, $now]);
                     $anchor = '#link-' . $pdo->lastInsertId();
-                    flash('success', 'تم إنشاء الرابط ' . $config['BASE_URL'] . '/' . $code);
+                    flash('success', 'Created ' . $config['BASE_URL'] . '/' . $code);
                 } catch (PDOException $ex) {
-                    $err = 'الكود مستخدم مسبقاً';
+                    $err = 'This code is already taken.';
                 }
             }
             if ($err !== null) {
@@ -208,19 +208,19 @@ function handle_admin(array $config, string $method): void
             $title = clean_title((string)($_POST['title'] ?? ''));
             $url   = clean_url((string)($_POST['target_url'] ?? ''));
             if ($url === null) {
-                flash('error', 'الرابط غير صالح. يجب أن يبدأ بـ http:// أو https://');
+                flash('error', 'Invalid URL. It must start with http:// or https://');
             } else {
                 $st = $pdo->prepare('UPDATE links SET title = ?, target_url = ?, updated_at = ? WHERE id = ?');
                 $st->execute([$title, $url, now_utc(), $id]);
-                flash($st->rowCount() ? 'success' : 'error', $st->rowCount() ? 'تم حفظ التعديلات' : 'الرابط غير موجود');
+                flash($st->rowCount() ? 'success' : 'error', $st->rowCount() ? 'Changes saved.' : 'Link not found.');
             }
             $anchor = '#link-' . $id;
         } elseif ($action === 'delete') {
             $st = $pdo->prepare('DELETE FROM links WHERE id = ?');
             $st->execute([(int)($_POST['id'] ?? 0)]);
-            flash($st->rowCount() ? 'success' : 'error', $st->rowCount() ? 'تم حذف الرابط' : 'الرابط غير موجود');
+            flash($st->rowCount() ? 'success' : 'error', $st->rowCount() ? 'Link deleted.' : 'Link not found.');
         } else {
-            flash('error', 'إجراء غير معروف');
+            flash('error', 'Unknown action.');
         }
         redirect('/admin' . $anchor);
     }

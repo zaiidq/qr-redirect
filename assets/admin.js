@@ -1,4 +1,5 @@
-// Admin page helpers: QR rendering, PNG/SVG download, copy-to-clipboard, confirm-before-delete.
+// Admin page helpers: QR rendering, PNG/SVG download, copy, edit toggle, delete confirm,
+// local time display and search filter.
 (function () {
   'use strict';
 
@@ -53,12 +54,17 @@
     return '<?xml version="1.0" encoding="UTF-8"?>\n' + qr.createSvgTag({ cellSize: 10, margin: 40 });
   }
 
+  function flashButton(btn) {
+    btn.classList.add('done');
+    var label = btn.getAttribute('title');
+    btn.setAttribute('title', 'Copied!');
+    setTimeout(function () {
+      btn.classList.remove('done');
+      btn.setAttribute('title', label);
+    }, 1500);
+  }
+
   function copyText(text, btn) {
-    var done = function () {
-      var old = btn.textContent;
-      btn.textContent = 'تم النسخ ✓';
-      setTimeout(function () { btn.textContent = old; }, 1500);
-    };
     var fallback = function () {
       var ta = document.createElement('textarea');
       ta.value = text;
@@ -67,52 +73,86 @@
       ta.style.opacity = '0';
       document.body.appendChild(ta);
       ta.select();
-      try { document.execCommand('copy'); done(); } catch (e) { window.prompt('انسخ الرابط:', text); }
+      try { document.execCommand('copy'); flashButton(btn); } catch (e) { window.prompt('Copy this link:', text); }
       ta.remove();
     };
     if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(text).then(done, fallback);
+      navigator.clipboard.writeText(text).then(function () { flashButton(btn); }, fallback);
     } else {
       fallback();
     }
   }
 
-  document.querySelectorAll('[data-url]').forEach(function (card) {
+  // QR previews + downloads
+  document.querySelectorAll('.card[data-url]').forEach(function (card) {
     var url = card.getAttribute('data-url');
     var code = card.getAttribute('data-code') || 'code';
+    var box = card.querySelector('.qr');
     var qr;
     try {
       qr = makeQr(url);
     } catch (e) {
-      card.querySelector('.qr').textContent = 'تعذر إنشاء QR';
+      box.textContent = 'Could not render QR';
       return;
     }
-    // Preview (scalable SVG, sized by CSS)
-    card.querySelector('.qr').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 16, scalable: true });
+    box.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 8, scalable: true });
 
-    var png = card.querySelector('.js-png');
-    if (png) {
-      png.addEventListener('click', function () {
-        pngBlob(qr, function (blob) { download(blob, 'qr-' + code + '.png'); });
-      });
-    }
-    var svg = card.querySelector('.js-svg');
-    if (svg) {
-      svg.addEventListener('click', function () {
-        download(new Blob([svgText(qr)], { type: 'image/svg+xml' }), 'qr-' + code + '.svg');
-      });
-    }
+    card.querySelector('.js-png').addEventListener('click', function () {
+      pngBlob(qr, function (blob) { download(blob, 'qr-' + code + '.png'); });
+    });
+    card.querySelector('.js-svg').addEventListener('click', function () {
+      download(new Blob([svgText(qr)], { type: 'image/svg+xml' }), 'qr-' + code + '.svg');
+    });
+
+    // Edit toggle
+    var editBtn = card.querySelector('.js-edit');
+    var form = card.querySelector('.edit-form');
+    var setOpen = function (open) {
+      form.hidden = !open;
+      editBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) { form.querySelector('input[name="target_url"]').focus(); }
+    };
+    editBtn.addEventListener('click', function () { setOpen(form.hidden); });
+    form.querySelector('.js-cancel').addEventListener('click', function () { form.reset(); setOpen(false); });
   });
 
+  // Copy buttons
   document.querySelectorAll('.js-copy').forEach(function (btn) {
     btn.addEventListener('click', function () { copyText(btn.getAttribute('data-copy'), btn); });
   });
 
+  // Confirm before delete
   document.querySelectorAll('form.js-confirm').forEach(function (form) {
     form.addEventListener('submit', function (ev) {
-      if (!window.confirm(form.getAttribute('data-confirm') || 'هل أنت متأكد؟')) {
+      if (!window.confirm(form.getAttribute('data-confirm') || 'Are you sure?')) {
         ev.preventDefault();
       }
     });
   });
+
+  // Show last-scan times in the viewer's local time zone
+  document.querySelectorAll('time[datetime]').forEach(function (t) {
+    var d = new Date(t.getAttribute('datetime'));
+    if (!isNaN(d)) {
+      t.textContent = d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+      t.title = t.getAttribute('datetime');
+    }
+  });
+
+  // Search filter
+  var filter = document.getElementById('filter');
+  if (filter) {
+    var cards = document.querySelectorAll('.card[data-search]');
+    var none = document.querySelector('.no-match');
+    filter.addEventListener('input', function () {
+      var q = filter.value.trim().toLowerCase();
+      var shown = 0;
+      cards.forEach(function (c) {
+        var hit = !q || c.getAttribute('data-search').indexOf(q) !== -1;
+        c.hidden = !hit;
+        if (hit) { shown++; }
+      });
+      if (none) { none.hidden = shown !== 0; }
+    });
+  }
 })();
