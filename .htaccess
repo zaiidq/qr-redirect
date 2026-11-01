@@ -1,0 +1,22 @@
+# Apache: route everything that is not a real file to index.php and block private files.
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Block private folders and files
+    RewriteRule ^(data|inc)(/|$) - [F,L]
+    RewriteRule ^(config\.php|README\.md|web\.config)$ - [F,L,NC]
+
+    # Everything that is not an existing file or folder goes to index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+<Files "config.php">
+    Require all denied
+</Files>
+<FilesMatch "\.(db|sqlite|sqlite3|md)$">
+    Require all denied
+</FilesMatch>
